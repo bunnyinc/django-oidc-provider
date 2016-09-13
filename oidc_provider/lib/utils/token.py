@@ -9,7 +9,7 @@ from jwkest.jwk import SYMKey
 from jwkest.jws import JWS
 from jwkest.jwt import JWT
 
-from oidc_provider.lib.utils.common import get_issuer
+from oidc_provider.lib.utils.common import get_issuer, get_user_sid
 from oidc_provider.models import (
     Code,
     RSAKey,
@@ -18,7 +18,7 @@ from oidc_provider.models import (
 from oidc_provider import settings
 
 
-def create_id_token(user, aud, nonce='', at_hash='', request=None, scope=[]):
+def create_id_token(user, aud, nonce='', at_hash='', request=None, scope=[], sid=False):
     """
     Creates the id_token dictionary.
     See: http://openid.net/specs/openid-connect-core-1_0.html#IDToken
@@ -53,6 +53,9 @@ def create_id_token(user, aud, nonce='', at_hash='', request=None, scope=[]):
     if ('email' in scope) and getattr(user, 'email', None):
         dic['email'] = user.email
 
+    if sid:
+        dic['sid'] = get_user_sid(user)
+
     processing_hook = settings.get('OIDC_IDTOKEN_PROCESSING_HOOK')
 
     if isinstance(processing_hook, (list, tuple)):
@@ -74,8 +77,9 @@ def encode_id_token(payload, client):
 
 def decode_id_token(token, client):
     """
-    Represent the ID Token as a JSON Web Token (JWT).
-    Return a hash.
+    Takes a JSON Web Token (JWT) and signing client
+    to verify and decode the payload.
+    Return a dict.
     """
     keys = get_client_alg_keys(client)
     return JWS().verify_compact(token, keys=keys)
